@@ -1,7 +1,7 @@
-pandas
-scikit-learn
-tensorflow
+
+pandas==2.2.3
+scikit-learn==1.2.2
+tensorflow==2.18.0
 streamlit
-joblib
-numpy
-keras
+joblib==1.5.0
+numpy==1.26.4
