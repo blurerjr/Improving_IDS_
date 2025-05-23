@@ -1,3 +1,7 @@
+[compatibility]
+# Set the Python version explicitly. TensorFlow 2.15 officially supports up to Python 3.11.
+# If your local environment is 3.12, use 3.12. If it's 3.11, use 3.11.
+pythonVersion = "3.11"
 [theme]
 primaryColor="#F63366"
 backgroundColor="#FFFFFF"
