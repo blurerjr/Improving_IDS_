@@ -17,7 +17,7 @@ st.set_page_config(page_title="Network Intrusion Detector", layout="wide")
 
 # --- Define Dataset URL and Features ---
 # IMPORTANT: Replace this with your actual dataset URL.
-dataset_url = 'YOUR_NETWORK_INTRUSION_DATASET_RAW_URL.csv' # REPLACE THIS URL
+dataset_url = 'https://raw.githubusercontent.com/blurerjr/Improving_IDS_/refs/heads/master/KDDTrain%2B.txt' # REPLACED WITH YOUR PROVIDED URL
 
 # Define ALL feature names in your dataset (including the target column)
 all_dataset_columns = [
@@ -55,7 +55,8 @@ target_column = 'outcome'
 @st.cache_data
 def load_and_preprocess_data():
     try:
-        df = pd.read_csv(dataset_url, names=all_dataset_columns, header=None)
+        # Added sep=',' to correctly parse the .txt file as a CSV
+        df = pd.read_csv(dataset_url, names=all_dataset_columns, header=None, sep=',')
 
         X = df.drop(columns=[target_column])
         y = df[target_column]
