@@ -56,7 +56,8 @@ target_column = 'outcome'
 def load_and_preprocess_data():
     try:
         # Added sep=',' to correctly parse the .txt file as a CSV
-        df = pd.read_csv(dataset_url, names=all_dataset_columns, header=None, sep=',')
+        # Added engine='python' and skipinitialspace=True for more robust parsing of .txt files
+        df = pd.read_csv(dataset_url, names=all_dataset_columns, header=None, sep=',', engine='python', skipinitialspace=True)
 
         X = df.drop(columns=[target_column])
         y = df[target_column]
