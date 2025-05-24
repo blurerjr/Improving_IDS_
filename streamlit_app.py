@@ -14,8 +14,8 @@ from sklearn.preprocessing import label_binarize
 # --- Configuration ---
 st.set_page_config(page_title="NSL-KDD Intrusion Detector", layout="wide")
 
-# Define top 10 features based on provided permutation importance
-selected_features = [
+# Define top 20 features based on provided permutation importance
+all_features = [
     "dst_host_same_src_port_rate",
     "dst_host_srv_diff_host_rate",
     "diff_srv_rate",
@@ -25,7 +25,39 @@ selected_features = [
     "count",
     "dst_host_same_srv_rate",
     "dst_host_srv_count",
-    "srv_diff_host_rate"
+    "srv_diff_host_rate",
+    "wrong_fragment",
+    "srv_count",
+    "hot",
+    "same_srv_rate",
+    "protocol_type",
+    "duration",
+    "service",
+    "dst_host_rerror_rate",
+    "rerror_rate",
+    "dst_host_serror_rate"
+]
+
+# Filter numerical features for sliders (exclude categorical features)
+numerical_features = [
+    "dst_host_same_src_port_rate",
+    "dst_host_srv_diff_host_rate",
+    "diff_srv_rate",
+    "dst_host_count",
+    "logged_in",
+    "dst_host_diff_srv_rate",
+    "count",
+    "dst_host_same_srv_rate",
+    "dst_host_srv_count",
+    "srv_diff_host_rate",
+    "wrong_fragment",
+    "srv_count",
+    "hot",
+    "same_srv_rate",
+    "duration",
+    "dst_host_rerror_rate",
+    "rerror_rate",
+    "dst_host_serror_rate"
 ]
 
 # --- Data Loading and Preprocessing ---
@@ -137,12 +169,12 @@ if X is not None and y_encoded is not None and label_encoder is not None and imp
     feature_names = X.columns
     feature_importance_df = pd.DataFrame({'feature': feature_names, 'importance': importances})
     feature_importance_df = feature_importance_df.sort_values('importance', ascending=False)
-    st.dataframe(feature_importance_df.head(10), hide_index=True)
+    st.dataframe(feature_importance_df.head(20), hide_index=True)
 
     st.subheader("Feature Importance Bar Chart")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.barplot(x='importance', y='feature', data=feature_importance_df.head(10), ax=ax)
-    ax.set_title('Top 10 Feature Importance from Random Forest')
+    fig, ax = plt.subplots(figsize=(10, 8))
+    sns.barplot(x='importance', y='feature', data=feature_importance_df.head(20), ax=ax)
+    ax.set_title('Top 20 Feature Importance from Random Forest')
     ax.set_xlabel('Importance')
     ax.set_ylabel('Feature')
     plt.tight_layout()
@@ -192,10 +224,10 @@ if X is not None and y_encoded is not None and label_encoder is not None and imp
         st.write("Adjust the values below to get a prediction.")
         st.write("Ranges based on training data statistics (normalized).")
         input_data = {}
-        # Validate features to avoid KeyError
-        valid_features = [f for f in selected_features if f in X.columns and f in stats_df.index]
+        # Validate numerical features to avoid KeyError
+        valid_features = [f for f in numerical_features if f in X.columns and f in stats_df.index]
         if not valid_features:
-            st.error("No valid features available for input. Please check feature selection.")
+            st.error("No valid numerical features available for input. Please check feature selection.")
         else:
             for feature in valid_features:
                 min_val = float(stats_df.loc[feature, 'min'])
