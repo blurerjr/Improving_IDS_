@@ -14,20 +14,8 @@ from sklearn.preprocessing import label_binarize
 # --- Configuration ---
 st.set_page_config(page_title="NSL-KDD Intrusion Detector", layout="wide")
 
-# Define top 10 features based on importance (to be determined after model training)
-# Placeholder: Will be updated dynamically after training
-selected_features = [
-    "dst_host_same_srv_rate",
-    "dst_host_srv_count",
-    "same_srv_rate",
-    "dst_host_serror_rate",
-    "srv_serror_rate",
-    "count",
-    "dst_host_count",
-    "serror_rate",
-    "src_bytes",
-    "dst_bytes"
-]
+# Initialize selected_features as empty; will be set after model training
+selected_features = []
 
 # --- Data Loading and Preprocessing ---
 @st.cache_data
@@ -123,7 +111,6 @@ if X is not None and y_encoded is not None and label_encoder is not None and imp
     @st.cache_resource
     def train_model(features, target):
         st.info("Training the Random Forest model...")
-        # Use simpler parameters to avoid heavy computation
         model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
         model.fit(features, target)
         # Update selected_features with top 10 important features
@@ -199,42 +186,47 @@ if X is not None and y_encoded is not None and label_encoder is not None and imp
         st.write("Adjust the values below to get a prediction.")
         st.write("Ranges based on training data statistics (normalized).")
         input_data = {}
-        for feature in selected_features:
-            min_val = float(stats_df.loc[feature, 'min'])
-            max_val = float(stats_df.loc[feature, 'max'])
-            median_val = float(stats_df.loc[feature, '50%'])
-            if min_val == max_val:
-                input_data[feature] = st.number_input(f"{feature}", value=min_val, key=f"input_{feature}")
-            else:
-                input_data[feature] = st.slider(f"{feature}", min_value=min_val, max_value=max_val, value=median_val, key=f"input_{feature}")
+        # Ensure only valid features are used
+        valid_features = [f for f in selected_features if f in stats_df.index]
+        if not valid_features:
+            st.error("No valid features available for input. Please check feature importance.")
+        else:
+            for feature in valid_features:
+                min_val = float(stats_df.loc[feature, 'min'])
+                max_val = float(stats_df.loc[feature, 'max'])
+                median_val = float(stats_df.loc[feature, '50%'])
+                if min_val == max_val:
+                    input_data[feature] = st.number_input(f"{feature}", value=min_val, key=f"input_{feature}")
+                else:
+                    input_data[feature] = st.slider(f"{feature}", min_value=min_val, max_value=max_val, value=median_val, key=f"input_{feature}")
 
-        # --- Prediction Button ---
-        st.header("Detect Intrusion")
-        st.info("Use the button below to detect intrusion in the input network data.")
-        if st.button("Detect Activity"):
-            # Prepare input data for prediction
-            input_df = pd.DataFrame([input_data])
-            # Ensure input_df has all columns in X (fill missing with 0)
-            for col in X.columns:
-                if col not in input_df.columns:
-                    input_df[col] = 0
-            input_df = input_df[X.columns]  # Reorder to match training data
-            input_imputed = imputer.transform(input_df)
-            input_processed_df = pd.DataFrame(input_imputed, columns=X.columns)
+            # --- Prediction Button ---
+            st.header("Detect Intrusion")
+            st.info("Use the button below to detect intrusion in the input network data.")
+            if st.button("Detect Activity"):
+                # Prepare input data for prediction
+                input_df = pd.DataFrame([input_data])
+                # Ensure input_df has all columns in X (fill missing with 0)
+                for col in X.columns:
+                    if col not in input_df.columns:
+                        input_df[col] = 0
+                input_df = input_df[X.columns]  # Reorder to match training data
+                input_imputed = imputer.transform(input_df)
+                input_processed_df = pd.DataFrame(input_imputed, columns=X.columns)
 
-            # Make prediction
-            prediction_encoded = rf_model.predict(input_processed_df)
-            predicted_label_raw = label_encoder.inverse_transform(prediction_encoded)[0]
+                # Make prediction
+                prediction_encoded = rf_model.predict(input_processed_df)
+                predicted_label_raw = label_encoder.inverse_transform(prediction_encoded)[0]
 
-            # Display prediction
-            st.subheader("Detection Result")
-            formatted_label = predicted_label_raw.replace('_', ' ').title()
-            if predicted_label_raw == 'normal':
-                st.success(f"Detected Activity: **{formatted_label}** ✅")
-                st.info("The model detects normal, non-intrusive network activity.")
-            else:
-                st.warning(f"Detected Activity: **{formatted_label}** 🚨")
-                st.info(f"The model detects an intrusion of type: **{formatted_label}**.")
-                st.info("Proceed accordingly to mitigate the intrusion.")
+                # Display prediction
+                st.subheader("Detection Result")
+                formatted_label = predicted_label_raw.replace('_', ' ').title()
+                if predicted_label_raw == 'normal':
+                    st.success(f"Detected Activity: **{formatted_label}** ✅")
+                    st.info("The model detects normal, non-intrusive network activity.")
+                else:
+                    st.warning(f"Detected Activity: **{formatted_label}** 🚨")
+                    st.info(f"The model detects an intrusion of type: **{formatted_label}**.")
+                    st.info("Proceed accordingly to mitigate the intrusion.")
 else:
     st.error("App could not load data or train the model. Please check the data URL and file format.")
