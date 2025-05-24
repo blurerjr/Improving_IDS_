@@ -14,8 +14,19 @@ from sklearn.preprocessing import label_binarize
 # --- Configuration ---
 st.set_page_config(page_title="NSL-KDD Intrusion Detector", layout="wide")
 
-# Initialize selected_features as empty; will be set after model training
-selected_features = []
+# Define top 10 features based on provided permutation importance
+selected_features = [
+    "dst_host_same_src_port_rate",
+    "dst_host_srv_diff_host_rate",
+    "diff_srv_rate",
+    "dst_host_count",
+    "logged_in",
+    "dst_host_diff_srv_rate",
+    "count",
+    "dst_host_same_srv_rate",
+    "dst_host_srv_count",
+    "srv_diff_host_rate"
+]
 
 # --- Data Loading and Preprocessing ---
 @st.cache_data
@@ -26,7 +37,7 @@ def load_and_preprocess_data():
                    "num_failed_logins","logged_in","num_compromised","root_shell","su_attempted","num_root",
                    "num_file_creations","num_shells","num_access_files","num_outbound_cmds","is_host_login",
                    "is_guest_login","count","srv_count","serror_rate","srv_serror_rate","rerror_rate","srv_rerror_rate",
-                   "same_srv_rate","diff_srv_rate","srv_diff_host_rate","dst_host_count","dst_host_srv_count", 
+                   "same_srv_rate","diff_srv_rate","srv_diff_host_rate","dst_host_count","dst_host_srv_count",
                    "dst_host_same_srv_rate","dst_host_diff_srv_rate","dst_host_same_src_port_rate",
                    "dst_host_srv_diff_host_rate","dst_host_serror_rate","dst_host_srv_serror_rate",
                    "dst_host_rerror_rate","dst_host_srv_rerror_rate","label","difficulty"]
@@ -113,11 +124,6 @@ if X is not None and y_encoded is not None and label_encoder is not None and imp
         st.info("Training the Random Forest model...")
         model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
         model.fit(features, target)
-        # Update selected_features with top 10 important features
-        global selected_features
-        importances = model.feature_importances_
-        feature_importance_df = pd.DataFrame({'feature': features.columns, 'importance': importances})
-        selected_features = feature_importance_df.sort_values('importance', ascending=False)['feature'].head(10).tolist()
         st.success("Model training complete!")
         return model
 
@@ -186,10 +192,10 @@ if X is not None and y_encoded is not None and label_encoder is not None and imp
         st.write("Adjust the values below to get a prediction.")
         st.write("Ranges based on training data statistics (normalized).")
         input_data = {}
-        # Ensure only valid features are used
-        valid_features = [f for f in selected_features if f in stats_df.index]
+        # Validate features to avoid KeyError
+        valid_features = [f for f in selected_features if f in X.columns and f in stats_df.index]
         if not valid_features:
-            st.error("No valid features available for input. Please check feature importance.")
+            st.error("No valid features available for input. Please check feature selection.")
         else:
             for feature in valid_features:
                 min_val = float(stats_df.loc[feature, 'min'])
