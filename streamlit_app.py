@@ -14,7 +14,7 @@ from sklearn.preprocessing import label_binarize
 # --- Configuration ---
 st.set_page_config(page_title="NSL-KDD Intrusion Detector", layout="wide")
 
-# Define top 20 features based on provided permutation importance
+# Define top 20 features based on permutation importance
 all_features = [
     "dst_host_same_src_port_rate",
     "dst_host_srv_diff_host_rate",
@@ -38,7 +38,7 @@ all_features = [
     "dst_host_serror_rate"
 ]
 
-# Filter numerical features for sliders (exclude categorical features)
+# Filter numerical features for sliders (exclude categorical)
 numerical_features = [
     "dst_host_same_src_port_rate",
     "dst_host_srv_diff_host_rate",
@@ -242,14 +242,14 @@ if X is not None and y_encoded is not None and label_encoder is not None and imp
             st.header("Detect Intrusion")
             st.info("Use the button below to detect intrusion in the input network data.")
             if st.button("Detect Activity"):
-                # Prepare input data for prediction
+                # Prepare input data for prediction efficiently
                 input_df = pd.DataFrame([input_data])
-                # Ensure input_df has all columns in X (fill missing with 0)
-                for col in X.columns:
-                    if col not in input_df.columns:
-                        input_df[col] = 0
-                input_df = input_df[X.columns]  # Reorder to match training data
-                input_imputed = imputer.transform(input_df)
+                # Create a DataFrame with all columns initialized to 0
+                full_input_df = pd.DataFrame(0.0, index=[0], columns=X.columns)
+                # Update with user-provided values
+                for col in input_data:
+                    full_input_df[col] = input_data[col]
+                input_imputed = imputer.transform(full_input_df)
                 input_processed_df = pd.DataFrame(input_imputed, columns=X.columns)
 
                 # Make prediction
