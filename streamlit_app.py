@@ -7,7 +7,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import classification_report, confusion_matrix
-from imblearn.over_sampling import SMOTE # New import for SMOTE
+from imblearn.over_sampling import SMOTE
 
 # --- Configuration ---
 st.set_page_config(page_title="NSL-KDD Intrusion Detector", layout="wide")
@@ -81,10 +81,11 @@ def load_and_preprocess_data():
         test_data = test_data.drop(['difficulty'], axis=1, errors='ignore')
                                   
         # Compute derived features for both datasets
-        train_data['byte_ratio'] = train_data['src_bytes'] / (train_data['dst_bytes'] + 1)  # Avoid division by zero
+        # Add a small constant to dst_bytes to avoid division by zero
+        train_data['byte_ratio'] = train_data['src_bytes'] / (train_data['dst_bytes'] + 1e-6)
         train_data['byte_diff'] = train_data['src_bytes'] - train_data['dst_bytes']
         
-        test_data['byte_ratio'] = test_data['src_bytes'] / (test_data['dst_bytes'] + 1)
+        test_data['byte_ratio'] = test_data['src_bytes'] / (test_data['dst_bytes'] + 1e-6)
         test_data['byte_diff'] = test_data['src_bytes'] - test_data['dst_bytes']
         
         # Function to convert attack labels
@@ -104,9 +105,7 @@ def load_and_preprocess_data():
         train_data_processed = change_label(train_data.copy())
         test_data_processed = change_label(test_data.copy())
 
-        # Combine for consistent encoding/scaling, then split back
         # Identify all columns, including newly engineered ones, that will be numerical
-        # Exclude 'label' temporarily from numeric cols list for scaling
         all_numeric_cols = [col for col in train_data_processed.select_dtypes(include=np.number).columns if col != 'label']
         all_categorical_cols = ['protocol_type','service','flag']
 
@@ -206,30 +205,26 @@ if X_train is not None and y_train is not None and X_test is not None and y_test
             st.info("No 'normal' class found in training data.")
 
     # --- Model Training ---
-    # --- Model Training ---
-@st.cache_resource
-def train_model(features, target):
-    st.info("Training the Random Forest model with SMOTE...")
-    
-    # Explicitly convert to NumPy arrays and correct dtypes for SMOTE
-    # Ensure features are float, target is integer
-    features_np = features.to_numpy().astype(np.float32)
-    target_np = target.to_numpy().astype(np.int32) # Labels must be integers
+    @st.cache_resource
+    def train_model(features, target):
+        st.info("Training the Random Forest model with SMOTE...")
+        
+        # Explicitly convert to NumPy arrays and correct dtypes for SMOTE
+        # Ensure features are float, target is integer
+        features_np = features.to_numpy().astype(np.float32)
+        target_np = target.to_numpy().astype(np.int32) # Labels must be integers
 
-    # Apply SMOTE
-    smote = SMOTE(random_state=42)
-    st.info("Applying SMOTE to balance the training data...")
-    X_resampled, y_resampled = smote.fit_resample(features_np, target_np) # Use the converted NumPy arrays
-    st.success(f"SMOTE applied. Original samples: {len(features)}, Resampled samples: {len(X_resampled)}")
-    
-    st.info("Fitting Random Forest model on resampled data...")
-    # RandomForestClassifier can handle pandas DataFrames, so we can convert back if preferred
-    # Or, it can also take numpy arrays directly. Let's keep it consistent.
-    model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1, class_weight='balanced')
-    model.fit(X_resampled, y_resampled)
-    st.success("Model training complete!")
-    return model
-  
+        # Apply SMOTE - REMOVED n_jobs, using numpy arrays
+        smote = SMOTE(random_state=42) 
+        st.info("Applying SMOTE to balance the training data...")
+        X_resampled, y_resampled = smote.fit_resample(features_np, target_np) 
+        st.success(f"SMOTE applied. Original samples: {len(features)}, Resampled samples: {len(X_resampled)}")
+        
+        st.info("Fitting Random Forest model on resampled data...")
+        model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1, class_weight='balanced')
+        model.fit(X_resampled, y_resampled)
+        st.success("Model training complete!")
+        return model
 
     # Train the model
     rf_model = train_model(X_train, y_train)
@@ -238,7 +233,10 @@ def train_model(features, target):
     st.header("Model Performance on Test Data")
     st.write("Evaluating the model on unseen test data (`KDDTest+.txt`) to assess its generalization ability.")
 
-    test_predictions_encoded = rf_model.predict(X_test)
+    # Ensure X_test is in the correct format for prediction
+    X_test_for_prediction = X_test.to_numpy().astype(np.float32)
+
+    test_predictions_encoded = rf_model.predict(X_test_for_prediction)
     test_true_labels = label_encoder.inverse_transform(y_test)
     test_predicted_labels = label_encoder.inverse_transform(test_predictions_encoded)
 
@@ -417,14 +415,16 @@ def train_model(features, target):
 
             # Impute and predict
             try:
+                # Impute the input DataFrame to handle any NaNs (though not expected after user input)
                 input_imputed = imputer.transform(full_input_df)
                 input_processed_df = pd.DataFrame(input_imputed, columns=X_train.columns)
             except ValueError as ve:
                 st.error(f"Error during imputation. This can happen if input columns do not match training columns. Details: {ve}")
                 st.stop() 
 
-            # Make prediction
-            prediction_encoded = rf_model.predict(input_processed_df)
+            # Make prediction - ensure input is a NumPy array for consistency with trained model's expectations
+            input_for_prediction = input_processed_df.to_numpy().astype(np.float32)
+            prediction_encoded = rf_model.predict(input_for_prediction)
             predicted_label_raw = label_encoder.inverse_transform(prediction_encoded)[0]
 
             # Display prediction
@@ -440,7 +440,7 @@ def train_model(features, target):
                     st.info("Proceed accordingly to mitigate the intrusion.")
 
                 # Display prediction probabilities
-                prediction_proba = rf_model.predict_proba(input_processed_df)
+                prediction_proba = rf_model.predict_proba(input_for_prediction)
                 proba_df = pd.DataFrame(prediction_proba, columns=label_encoder.classes_)
                 st.write("Prediction Probabilities:")
                 st.dataframe(proba_df)
