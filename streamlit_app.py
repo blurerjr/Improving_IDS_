@@ -81,7 +81,7 @@ def load_and_preprocess_data():
         test_data = test_data.drop(['difficulty'], axis=1, errors='ignore')
                                   
         # Compute derived features for both datasets
-        train_data['byte_ratio'] = train_data['src_bytes'] / (train_data['dst_bytes'] + 1)
+        train_data['byte_ratio'] = train_data['src_bytes'] / (train_data['dst_bytes'] + 1)  # Avoid division by zero
         train_data['byte_diff'] = train_data['src_bytes'] - train_data['dst_bytes']
         
         test_data['byte_ratio'] = test_data['src_bytes'] / (test_data['dst_bytes'] + 1)
@@ -210,8 +210,8 @@ if X_train is not None and y_train is not None and X_test is not None and y_test
     def train_model(features, target):
         st.info("Training the Random Forest model with SMOTE...")
         
-        # Apply SMOTE
-        smote = SMOTE(random_state=42, n_jobs=-1)
+        # Apply SMOTE - REMOVED n_jobs
+        smote = SMOTE(random_state=42) 
         st.info("Applying SMOTE to balance the training data...")
         X_resampled, y_resampled = smote.fit_resample(features, target)
         st.success(f"SMOTE applied. Original samples: {len(features)}, Resampled samples: {len(X_resampled)}")
