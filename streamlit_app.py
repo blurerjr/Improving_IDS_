@@ -206,21 +206,30 @@ if X_train is not None and y_train is not None and X_test is not None and y_test
             st.info("No 'normal' class found in training data.")
 
     # --- Model Training ---
-    @st.cache_resource
-    def train_model(features, target):
-        st.info("Training the Random Forest model with SMOTE...")
-        
-        # Apply SMOTE - REMOVED n_jobs
-        smote = SMOTE(random_state=42) 
-        st.info("Applying SMOTE to balance the training data...")
-        X_resampled, y_resampled = smote.fit_resample(features, target)
-        st.success(f"SMOTE applied. Original samples: {len(features)}, Resampled samples: {len(X_resampled)}")
-        
-        st.info("Fitting Random Forest model on resampled data...")
-        model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1, class_weight='balanced')
-        model.fit(X_resampled, y_resampled)
-        st.success("Model training complete!")
-        return model
+    # --- Model Training ---
+@st.cache_resource
+def train_model(features, target):
+    st.info("Training the Random Forest model with SMOTE...")
+    
+    # Explicitly convert to NumPy arrays and correct dtypes for SMOTE
+    # Ensure features are float, target is integer
+    features_np = features.to_numpy().astype(np.float32)
+    target_np = target.to_numpy().astype(np.int32) # Labels must be integers
+
+    # Apply SMOTE
+    smote = SMOTE(random_state=42)
+    st.info("Applying SMOTE to balance the training data...")
+    X_resampled, y_resampled = smote.fit_resample(features_np, target_np) # Use the converted NumPy arrays
+    st.success(f"SMOTE applied. Original samples: {len(features)}, Resampled samples: {len(X_resampled)}")
+    
+    st.info("Fitting Random Forest model on resampled data...")
+    # RandomForestClassifier can handle pandas DataFrames, so we can convert back if preferred
+    # Or, it can also take numpy arrays directly. Let's keep it consistent.
+    model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1, class_weight='balanced')
+    model.fit(X_resampled, y_resampled)
+    st.success("Model training complete!")
+    return model
+  
 
     # Train the model
     rf_model = train_model(X_train, y_train)
